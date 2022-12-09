@@ -1,9 +1,10 @@
 import pygame
 from dino_runner.components.obstacles.obstacle_manager import ObstacleManage
 from dino_runner.components.player_heart.player_heart_manager import PlayerHeartManager
+from dino_runner.components.power_ups.power_up_manage import PowerUpManager
 
 
-from dino_runner.utils.constants import BG, ICON, SCREEN_HEIGHT, SCREEN_WIDTH, TITLE, FPS, WHITE_COLOR, RUNNING
+from dino_runner.utils.constants import BG, DEFAULT_TYPE, FONT_STYLE, ICON, SCREEN_HEIGHT, SCREEN_WIDTH, TITLE, FPS, WHITE_COLOR
 from dino_runner.components.dinosaur import Dinosaur
 from dino_runner.components import text_utils
 
@@ -18,11 +19,13 @@ class Game:
         self.dino = Dinosaur()
         self.obstacle_manager = ObstacleManage()
         self.player_heart_manager = PlayerHeartManager()
+        self.power_up_manager = PowerUpManager()
         self.playing = False
         self.game_speed = 20
         self.x_pos_bg = 0
         self.y_pos_bg = 380
         self.points = 0
+        self.max_score = 0
         self.death_count = 0
         self.running = True
 
@@ -36,8 +39,11 @@ class Game:
         # Game loop: events - update - draw
         self.obstacle_manager = ObstacleManage()
         self.player_heart_manager = PlayerHeartManager()
-        pygame.mixer.music.play(-1)
+        self.power_up_manager.reset_power_ups(self.points)
+        pygame.mixer.music.play(-1) #mixer para reproducir musica
         self.playing = True
+        self.game_speed = 20
+        self.points = 0
         while self.playing:
             self.events()
             self.update()
@@ -52,18 +58,38 @@ class Game:
         input_user = pygame.key.get_pressed()
         self.dino.update(input_user)
         self.obstacle_manager.update(self)
+        self.power_up_manager.update(self.points, self.game_speed, self.dino)
 
     def draw(self):
         self.screen.fill((255, 255, 255))
         self.clock.tick(FPS)
+        if self.points <= 1000:
+            self.screen.fill((255, 255, 255))
+        else:
+            self.screen.fill((50, 50, 50))
         self.score()
+        self.draw_power_up_time()
         self.draw_background()
         self.dino.draw(self.screen)
         self.obstacle_manager.draw(self.screen)
         self.player_heart_manager.draw(self.screen)
+        self.power_up_manager.draw(self.screen)
  
         pygame.display.update()
         pygame.display.flip()
+
+    def draw_power_up_time(self):
+        if self.dino.has_power_up:
+            time_to_show = round((self.dino.power_up_time_up - pygame.time.get_ticks()) / 1000, 2)
+            if time_to_show >= 0:
+                font = pygame.font.Font(FONT_STYLE, 22)
+                text = font.render(f"{self.dino.type.capitalize()} enabled for {time_to_show} seconds.", True, (0, 0, 0))
+                text_rect = text.get_rect()
+                text_rect.center = (550, 50)
+                self.screen.blit(text, text_rect)
+            else:
+                self.has_power_up = False
+                self.dino.type = DEFAULT_TYPE
 
     def show_menu(self):
         self.running = True
@@ -107,8 +133,14 @@ class Game:
 
         if self.points % 100 == 0:
             self.game_speed +=1
-        
+        if self.max_score < self.points:
+            self.max_score = self.points
+
         (text, text_rect) = text_utils.get_score_element(self.points)
+        self.screen.blit(text, text_rect)
+        (text, text_rect) = text_utils.get_max_score_elements(self.max_score)
+        
+        self.dino.check_visibility(self.screen)
         
         self.screen.blit(text, text_rect)
 
@@ -120,3 +152,15 @@ class Game:
             self.screen.blit(BG, (image_width + self.x_pos_bg, self.y_pos_bg))
             self.x_pos_bg = 0
         self.x_pos_bg -= self.game_speed
+
+    def draw_power_up_active(self):
+        if self.dino.has_power_up:
+            time_to_show = round((self.dino.power_up_time_up - pygame.time.get_ticks())/1000)
+            if time_to_show >=0:
+                font = pygame.font.Font(FONT_STYLE, 30)
+                powerup_text = font.render(f"Time left: {time_to_show} ", True, (0,0,0) )
+                self.screen.blit(powerup_text, (1,1))
+                pygame.display.update()
+            else:
+                self.dino.has_power_up = False
+                self.dino.type = DEFAULT_TYPE

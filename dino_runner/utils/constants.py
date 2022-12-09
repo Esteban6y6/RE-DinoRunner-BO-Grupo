@@ -74,3 +74,5 @@ HEART_COUNT = 5
 FONT_STYLE = 'freesansbold.ttf'
 BLACK_COLOR = (0, 0, 0)
 WHITE_COLOR = (255, 255, 255)
+HAMMER_TYPE = "Hammer"
+SHIELD_TYPE = "shield"
